@@ -53,6 +53,18 @@ async function run() {
       res.send(result);
     });
 
+    // get all posts posted by a specific user
+    app.get("/posts/:email", async (req, res) => {
+      // const tokenEmail = req.user.email
+      const email = req.params.email;
+      // if (tokenEmail !== email) {
+      //   return res.status(403).send({ message: 'forbidden access' })
+      // }
+      const query = { "postCreator.email": email };
+      const result = await postsCollection.find(query).toArray();
+      res.send(result);
+    });
+
     // save an application in DB
     app.post("/applications", async (req, res) => {
       const applicationData = req.body;

@@ -73,6 +73,21 @@ async function run() {
       res.send(result);
     });
 
+    // update a post in db
+    app.put("/post/:id", async (req, res) => {
+      const id = req.params.id;
+      const postData = req.body;
+      const query = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const updateDoc = {
+        $set: {
+          ...postData,
+        },
+      };
+      const result = await postsCollection.updateOne(query, updateDoc, options);
+      res.send(result);
+    });
+
     // save an application in DB
     app.post("/applications", async (req, res) => {
       const applicationData = req.body;

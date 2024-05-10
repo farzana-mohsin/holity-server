@@ -32,6 +32,13 @@ async function run() {
       .db("volunteers")
       .collection("applications");
 
+    // posts related API
+    app.get("/posts", async (req, res) => {
+      const cursor = postsCollection.find();
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(

@@ -65,6 +65,14 @@ async function run() {
       res.send(result);
     });
 
+    // delete a post data from db
+    app.delete("/post/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await postsCollection.deleteOne(query);
+      res.send(result);
+    });
+
     // save an application in DB
     app.post("/applications", async (req, res) => {
       const applicationData = req.body;

@@ -53,6 +53,13 @@ async function run() {
       res.send(result);
     });
 
+    // save an application in DB
+    app.post("/applications", async (req, res) => {
+      const applicationData = req.body;
+      const result = await applicationsCollection.insertOne(applicationData);
+      res.send(result);
+    });
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(

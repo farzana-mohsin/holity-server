@@ -3,10 +3,22 @@ const express = require("express");
 const cors = require("cors");
 const app = express();
 const port = process.env.PORT || 5000;
+const jwt = require("jsonwebtoken");
+// const cookieParser = require("cookie-parser");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 // middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      // "https://cars-doctor-f17c1.web.app",
+      // "https://cars-doctor-f17c1.firebaseapp.com",
+    ],
+    // [], we need to change it while sending it to production
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 const uri = "mongodb://localhost:27017";
@@ -31,6 +43,31 @@ async function run() {
     const applicationsCollection = client
       .db("volunteers")
       .collection("applications");
+
+    // auth related API
+
+    app.post("/jwt", async (req, res) => {
+      const user = req.body;
+      console.log("user for token", user);
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: "10d",
+      });
+      res
+        .cookie("token", token, {
+          // expiresIn: "1d",
+          httpOnly: true,
+          secure: true,
+          sameSite: "none",
+          // maxAge: 2 * 60 * 60 * 1000,
+        })
+        .send({ token });
+    });
+
+    app.post("/logout", async (req, res) => {
+      const user = req.body;
+      console.log("logging out", user);
+      res.clearCookie("token", { maxAge: 0 }).send({ success: true });
+    });
 
     // posts related API
     app.get("/posts", async (req, res) => {
@@ -92,6 +129,14 @@ async function run() {
     app.post("/applications", async (req, res) => {
       const applicationData = req.body;
       const result = await applicationsCollection.insertOne(applicationData);
+      res.send(result);
+    });
+
+    // Get all all application requests from db for post creator
+    app.get("/application-requests/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { "postCreator.email": email };
+      const result = await applicationsCollection.find(query).toArray();
       res.send(result);
     });
 

@@ -4,7 +4,7 @@ const cors = require("cors");
 const app = express();
 const port = process.env.PORT || 5000;
 const jwt = require("jsonwebtoken");
-// const cookieParser = require("cookie-parser");
+const cookieParser = require("cookie-parser");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 // middleware
@@ -20,6 +20,7 @@ app.use(
   })
 );
 app.use(express.json());
+app.use(cookieParser());
 
 const uri = "mongodb://localhost:27017";
 
@@ -33,6 +34,49 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   },
 });
+
+// middlewares
+const logger = (req, res, next) => {
+  console.log(req.method, req.url);
+  next();
+};
+
+const verifyToken = (req, res, next) => {
+  const token = req.cookies?.token;
+  console.log("token in the middleware", token);
+
+  // token not available
+  if (!token) {
+    return res.status(401).send({ message: "unauthorized access" });
+  }
+
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    // error
+    if (err) {
+      console.log("error from verifyToken method", err);
+      return res
+        .status(401)
+        .send({ message: "failed in verifyToken, unauthorized access" });
+    }
+    // if token is valid, then it would be decoded
+    // console.log("value in the token", decoded);
+
+    console.log(decoded);
+    req.user = decoded;
+  });
+
+  next();
+};
+
+const verifyEmail = (req, res, next) => {
+  if (req.query.email !== req.user.email) {
+    return res
+      .status(403)
+      .send({ message: "forbidden access due to wrong email" });
+  }
+
+  next();
+};
 
 async function run() {
   try {
@@ -49,9 +93,11 @@ async function run() {
     app.post("/jwt", async (req, res) => {
       const user = req.body;
       console.log("user for token", user);
+      console.log("token owner info", req.user);
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
         expiresIn: "10d",
       });
+
       res
         .cookie("token", token, {
           // expiresIn: "1d",
@@ -83,11 +129,15 @@ async function run() {
     });
 
     // get a single post data
-    app.get("/post/:id", async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
-      const result = await postsCollection.findOne(query);
-      res.send(result);
+    app.get("/post/:id", logger, verifyToken, verifyEmail, async (req, res) => {
+      // const id = req.params.id;
+      // const query = { _id: new ObjectId(id) };
+      // const result = await postsCollection.findOne(query);
+      // res.send(result);
+
+      console.log("hello world12");
+
+      res.send();
     });
 
     // get all posts posted by a specific user

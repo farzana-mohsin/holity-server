@@ -117,7 +117,9 @@ async function run() {
 
     // posts related API
     app.get("/posts", async (req, res) => {
-      const cursor = postsCollection.find();
+      const limit = parseInt(req.query.limit);
+
+      const cursor = postsCollection.find().limit(limit);
       const result = await cursor.toArray();
       res.send(result);
     });

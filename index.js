@@ -130,6 +130,22 @@ async function run() {
       res.send(result);
     });
 
+    // search by post title
+    app.post("/posts-by-title", async (req, res) => {
+      const searchString = req.body.key;
+      console.log(searchString);
+
+      const query = {
+        postTitle: {
+          $regex: searchString,
+          $options: "i",
+        },
+      };
+
+      const result = await postsCollection.find(query).toArray();
+      res.send(result);
+    });
+
     // get a single post data
     app.get("/post/:id", logger, verifyToken, verifyEmail, async (req, res) => {
       // const id = req.params.id;

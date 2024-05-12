@@ -147,15 +147,11 @@ async function run() {
     });
 
     // get a single post data
-    app.get("/post/:id", logger, verifyToken, verifyEmail, async (req, res) => {
-      // const id = req.params.id;
-      // const query = { _id: new ObjectId(id) };
-      // const result = await postsCollection.findOne(query);
-      // res.send(result);
-
-      console.log("hello world12");
-
-      res.send();
+    app.get("/post/:id", logger, verifyToken, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await postsCollection.findOne(query);
+      res.send(result);
     });
 
     // get all posts posted by a specific user
@@ -197,6 +193,12 @@ async function run() {
     app.post("/applications", async (req, res) => {
       const applicationData = req.body;
       const result = await applicationsCollection.insertOne(applicationData);
+
+      const postId = applicationData.postId;
+      const query = { _id: new ObjectId(postId) };
+      const updateDoc = { $inc: { numberOfVolunteers: -1 } };
+      await postsCollection.updateOne(query, updateDoc);
+
       res.send(result);
     });
 

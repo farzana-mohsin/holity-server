@@ -119,7 +119,7 @@ async function run() {
     app.get("/posts", async (req, res) => {
       const limit = parseInt(req.query.limit);
 
-      const cursor = postsCollection.find().limit(limit);
+      const cursor = postsCollection.find().sort({ deadline: 1 }).limit(limit);
       const result = await cursor.toArray();
       res.send(result);
     });

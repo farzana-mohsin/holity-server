@@ -229,6 +229,30 @@ async function run() {
       res.send(postResult);
     });
 
+    app.delete("/applications/:id", async (req, res) => {
+      const postId = req.params.id;
+      console.log(postId);
+
+      const query = { postId };
+      console.log(query);
+
+      const applicationResult1 = await applicationsCollection
+        .find(query)
+        .toArray();
+
+      console.log(applicationResult1);
+
+      if (applicationResult1.length) {
+        const applicationQuery = { _id: applicationResult1[0]._id };
+        const applicationResult2 = await applicationsCollection.deleteOne(
+          applicationQuery
+        );
+        res.send(applicationResult2);
+      }
+
+      res.send();
+    });
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(

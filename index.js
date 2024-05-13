@@ -161,7 +161,7 @@ async function run() {
       // if (tokenEmail !== email) {
       //   return res.status(403).send({ message: 'forbidden access' })
       // }
-      const query = { "postCreator.email": email };
+      const query = { "organizer.email": email };
       const result = await postsCollection.find(query).toArray();
       res.send(result);
     });
@@ -202,12 +202,31 @@ async function run() {
       res.send(result);
     });
 
-    // Get all all application requests from db for post creator
+    // Get all all application requests from db for volunteer
     app.get("/application-requests/:email", async (req, res) => {
       const email = req.params.email;
-      const query = { "postCreator.email": email };
+      const query = { email };
       const result = await applicationsCollection.find(query).toArray();
       res.send(result);
+    });
+
+    app.get("/application-post-details/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email };
+      const result = await applicationsCollection.find(query).toArray();
+
+      const idsWithObjectId = result.map(
+        (application) => new ObjectId(application.postId)
+      );
+      console.log(idsWithObjectId);
+
+      const postQuery = {
+        _id: {
+          $in: idsWithObjectId,
+        },
+      };
+      const postResult = await postsCollection.find(postQuery).toArray();
+      res.send(postResult);
     });
 
     // Send a ping to confirm a successful connection

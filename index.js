@@ -12,19 +12,18 @@ app.use(
   cors({
     origin: [
       "http://localhost:5173",
-      // "https://cars-doctor-f17c1.web.app",
-      // "https://cars-doctor-f17c1.firebaseapp.com",
+      "https://assignment-eleven-server-nine.vercel.app",
+      "https://assignment-eleven-a257a.web.app",
     ],
-    // [], we need to change it while sending it to production
     credentials: true,
   })
 );
 app.use(express.json());
 app.use(cookieParser());
 
-const uri = "mongodb://localhost:27017";
+// const uri = "mongodb://localhost:27017";
 
-// const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster81657.uygasmd.mongodb.net/?retryWrites=true&w=majority&appName=Cluster81657`;
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster81657.uygasmd.mongodb.net/?retryWrites=true&w=majority&appName=Cluster81657`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -102,8 +101,8 @@ async function run() {
         .cookie("token", token, {
           // expiresIn: "1d",
           httpOnly: true,
-          secure: true,
-          sameSite: "none",
+          secure: process.env.NODE_ENV === "production",
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
           // maxAge: 2 * 60 * 60 * 1000,
         })
         .send({ token });
@@ -167,7 +166,7 @@ async function run() {
     });
 
     // delete a post data from db
-    app.delete("/post/:id", async (req, res) => {
+    app.delete("/post/:id", logger, verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await postsCollection.deleteOne(query);
@@ -175,7 +174,7 @@ async function run() {
     });
 
     // update a post in db
-    app.put("/post/:id", async (req, res) => {
+    app.put("/post/:id", logger, verifyToken, async (req, res) => {
       const id = req.params.id;
       const postData = req.body;
       const query = { _id: new ObjectId(id) };
@@ -210,51 +209,58 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/application-post-details/:email", async (req, res) => {
-      const email = req.params.email;
-      const query = { email };
-      const result = await applicationsCollection.find(query).toArray();
+    app.get(
+      "/application-post-details/:email",
+      logger,
+      verifyToken,
+      async (req, res) => {
+        const email = req.params.email;
+        const query = { email };
+        const result = await applicationsCollection.find(query).toArray();
 
-      const idsWithObjectId = result.map(
-        (application) => new ObjectId(application.postId)
-      );
-      console.log(idsWithObjectId);
+        const idsWithObjectId = result.map(
+          (application) => new ObjectId(application.postId)
+        );
+        console.log(idsWithObjectId);
 
-      const postQuery = {
-        _id: {
-          $in: idsWithObjectId,
-        },
-      };
-      const postResult = await postsCollection.find(postQuery).toArray();
-      res.send(postResult);
-    });
+        const postQuery = {
+          _id: {
+            $in: idsWithObjectId,
+          },
+        };
+        const postResult = await postsCollection.find(postQuery).toArray();
+        res.send(postResult);
+      }
+    );
 
-    app.delete("/applications/:id", async (req, res) => {
+    // cancel a volunteer request
+
+    app.delete("/applications/:id", logger, verifyToken, async (req, res) => {
       const postId = req.params.id;
       console.log(postId);
 
       const query = { postId };
       console.log(query);
 
-      const applicationResult1 = await applicationsCollection
+      const applicationFind = await applicationsCollection
         .find(query)
         .toArray();
 
-      console.log(applicationResult1);
+      console.log(applicationFind);
 
-      if (applicationResult1.length) {
-        const applicationQuery = { _id: applicationResult1[0]._id };
-        const applicationResult2 = await applicationsCollection.deleteOne(
+      if (applicationFind.length) {
+        const applicationQuery = { _id: applicationFind[0]._id };
+        const applicationResult = await applicationsCollection.deleteOne(
           applicationQuery
         );
-        res.send(applicationResult2);
+        res.send(applicationResult);
       }
 
       res.send();
     });
 
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
+    // await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
     );

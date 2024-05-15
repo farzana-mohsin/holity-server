@@ -12,8 +12,8 @@ app.use(
   cors({
     origin: [
       "http://localhost:5173",
-      "https://assignment-eleven-server-nine.vercel.app",
-      "https://assignment-eleven-a257a.web.app",
+      // "https://assignment-eleven-server-nine.vercel.app",
+      // "https://assignment-eleven-a257a.web.app",
     ],
     credentials: true,
   })
@@ -21,9 +21,9 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
-// const uri = "mongodb://localhost:27017";
+const uri = "mongodb://localhost:27017";
 
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster81657.uygasmd.mongodb.net/?retryWrites=true&w=majority&appName=Cluster81657`;
+// const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster81657.uygasmd.mongodb.net/?retryWrites=true&w=majority&appName=Cluster81657`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -99,7 +99,7 @@ async function run() {
 
       res
         .cookie("token", token, {
-          // expiresIn: "1d",
+          expiresIn: "1d",
           httpOnly: true,
           secure: process.env.NODE_ENV === "production",
           sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
@@ -117,6 +117,7 @@ async function run() {
     // posts related API
     app.get("/posts", async (req, res) => {
       const limit = parseInt(req.query.limit);
+      console.log("posts");
 
       const cursor = postsCollection.find().sort({ deadline: 1 }).limit(limit);
       const result = await cursor.toArray();
@@ -202,61 +203,45 @@ async function run() {
     });
 
     // Get all all application requests from db for volunteer
-    app.get("/application-requests/:email", async (req, res) => {
-      const email = req.params.email;
-      const query = { email };
-      const result = await applicationsCollection.find(query).toArray();
-      res.send(result);
-    });
-
     app.get(
-      "/application-post-details/:email",
+      "/application-requests/:email",
       logger,
       verifyToken,
       async (req, res) => {
         const email = req.params.email;
         const query = { email };
         const result = await applicationsCollection.find(query).toArray();
-
-        const idsWithObjectId = result.map(
-          (application) => new ObjectId(application.postId)
-        );
-        console.log(idsWithObjectId);
-
-        const postQuery = {
-          _id: {
-            $in: idsWithObjectId,
-          },
-        };
-        const postResult = await postsCollection.find(postQuery).toArray();
-        res.send(postResult);
+        res.send(result);
       }
     );
+
+    app.get("/application-post-details/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email };
+      const result = await applicationsCollection.find(query).toArray();
+
+      const idsWithObjectId = result.map(
+        (application) => new ObjectId(application.postId)
+      );
+      console.log(idsWithObjectId);
+
+      const postQuery = {
+        _id: {
+          $in: idsWithObjectId,
+        },
+      };
+      const postResult = await postsCollection.find(postQuery).toArray();
+      res.send(postResult);
+    });
 
     // cancel a volunteer request
 
     app.delete("/applications/:id", logger, verifyToken, async (req, res) => {
-      const postId = req.params.id;
-      console.log(postId);
+      const postIdFromParam = req.params.id;
 
-      const query = { postId };
-      console.log(query);
-
-      const applicationFind = await applicationsCollection
-        .find(query)
-        .toArray();
-
-      console.log(applicationFind);
-
-      if (applicationFind.length) {
-        const applicationQuery = { _id: applicationFind[0]._id };
-        const applicationResult = await applicationsCollection.deleteOne(
-          applicationQuery
-        );
-        res.send(applicationResult);
-      }
-
-      res.send();
+      const query = { postId: postIdFromParam };
+      const result = await applicationsCollection.deleteOne(query);
+      res.send(result);
     });
 
     // Send a ping to confirm a successful connection
@@ -276,5 +261,7 @@ app.get("/", (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`volunteer management server is running on port ${port}`);
+  console.log(
+    `volunteer management server is running on port ${port} in uri ${uri}`
+  );
 });

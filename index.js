@@ -1,10 +1,11 @@
 require("dotenv").config();
+const cookieParser = require("cookie-parser");
 const express = require("express");
 const cors = require("cors");
+const jwt = require("jsonwebtoken");
+
 const app = express();
 const port = process.env.PORT || 5000;
-const jwt = require("jsonwebtoken");
-const cookieParser = require("cookie-parser");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 // middleware
@@ -12,8 +13,8 @@ app.use(
   cors({
     origin: [
       "http://localhost:5173",
-      // "https://assignment-eleven-server-nine.vercel.app",
-      // "https://assignment-eleven-a257a.web.app",
+      "https://assignment-eleven-a257a.firebaseapp.com",
+      "https://assignment-eleven-a257a.web.app",
     ],
     credentials: true,
     optionSuccessStatus: 200, // new
@@ -22,9 +23,8 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
-const uri = "mongodb://localhost:27017";
-
-// const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster81657.uygasmd.mongodb.net/?retryWrites=true&w=majority&appName=Cluster81657`;
+// const uri = "mongodb://localhost:27017";
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster81657.uygasmd.mongodb.net/?retryWrites=true&w=majority&appName=Cluster81657`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -59,16 +59,12 @@ const verifyToken = (req, res, next) => {
         .send({ message: "failed in verifyToken, unauthorized access" });
     }
     // if token is valid, then it would be decoded
-    // console.log("value in the token", decoded);
-
-    console.log(decoded);
     req.user = decoded;
   });
   next();
 };
 
 const verifyEmail = (req, res, next) => {
-  console.log(req.user.email, req.query.email);
   if (req.query.email !== req.user.email) {
     return res.status(403).send({ message: "forbidden access" });
   }
@@ -91,7 +87,6 @@ async function run() {
     app.post("/jwt", async (req, res) => {
       const user = req.body;
       console.log("user for token", user);
-      console.log("token owner info", req.user);
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
         expiresIn: "10d",
       });
@@ -110,13 +105,14 @@ async function run() {
     app.post("/logout", async (req, res) => {
       const user = req.body;
       console.log("logging out", user);
-      res.clearCookie("token", { maxAge: 0 }).send({ success: true });
+      res
+        .clearCookie("token", { maxAge: 0, sameSite: "none", secure: true })
+        .send({ success: true });
     });
 
     // posts related API
     app.get("/posts", async (req, res) => {
       const limit = parseInt(req.query.limit);
-      console.log("posts");
 
       const cursor = postsCollection.find().sort({ deadline: 1 }).limit(limit);
       const result = await cursor.toArray();
@@ -132,7 +128,6 @@ async function run() {
     // search by post title
     app.post("/posts-by-title", async (req, res) => {
       const searchString = req.body.key;
-      console.log(searchString);
 
       const query = {
         postTitle: {
@@ -154,9 +149,9 @@ async function run() {
     });
 
     // get all posts posted by a specific user
-    app.get("/postsByEmail", verifyToken, verifyEmail, async (req, res) => {
+    app.get("/posts/:email", verifyToken, async (req, res) => {
       // const tokenEmail = req.user.email
-      const email = req.query.email;
+      const email = req.params.email;
 
       const query = { "organizer.email": email };
       const result = await postsCollection.find(query).toArray();
@@ -264,6 +259,6 @@ app.get("/", (req, res) => {
 
 app.listen(port, () => {
   console.log(
-    `volunteer management server is running on port ${port} in uri ${uri}`
+    `volunteer management server is running on port ${port} with mongo uri ${uri}`
   );
 });

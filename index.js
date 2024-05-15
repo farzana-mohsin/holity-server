@@ -16,6 +16,7 @@ app.use(
       // "https://assignment-eleven-a257a.web.app",
     ],
     credentials: true,
+    optionSuccessStatus: 200, // new
   })
 );
 app.use(express.json());
@@ -63,15 +64,13 @@ const verifyToken = (req, res, next) => {
     console.log(decoded);
     req.user = decoded;
   });
-
   next();
 };
 
 const verifyEmail = (req, res, next) => {
+  console.log(req.user.email, req.query.email);
   if (req.query.email !== req.user.email) {
-    return res
-      .status(403)
-      .send({ message: "forbidden access due to wrong email" });
+    return res.status(403).send({ message: "forbidden access" });
   }
 
   next();
@@ -99,13 +98,13 @@ async function run() {
 
       res
         .cookie("token", token, {
-          expiresIn: "1d",
+          expiresIn: "365d",
           httpOnly: true,
           secure: process.env.NODE_ENV === "production",
           sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
           // maxAge: 2 * 60 * 60 * 1000,
         })
-        .send({ token });
+        .send({ success: true });
     });
 
     app.post("/logout", async (req, res) => {
@@ -124,7 +123,7 @@ async function run() {
       res.send(result);
     });
 
-    app.post("/posts", async (req, res) => {
+    app.post("/posts", verifyToken, async (req, res) => {
       const newPosts = req.body;
       const result = await postsCollection.insertOne(newPosts);
       res.send(result);
@@ -147,7 +146,7 @@ async function run() {
     });
 
     // get a single post data
-    app.get("/post/:id", logger, verifyToken, async (req, res) => {
+    app.get("/post/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await postsCollection.findOne(query);
@@ -155,12 +154,10 @@ async function run() {
     });
 
     // get all posts posted by a specific user
-    app.get("/posts/:email", async (req, res) => {
+    app.get("/postsByEmail", verifyToken, verifyEmail, async (req, res) => {
       // const tokenEmail = req.user.email
-      const email = req.params.email;
-      // if (tokenEmail !== email) {
-      //   return res.status(403).send({ message: 'forbidden access' })
-      // }
+      const email = req.query.email;
+
       const query = { "organizer.email": email };
       const result = await postsCollection.find(query).toArray();
       res.send(result);
@@ -189,8 +186,8 @@ async function run() {
       res.send(result);
     });
 
-    // save an application in DB
-    app.post("/applications", async (req, res) => {
+    // save a volunteer application in DB
+    app.post("/applications", verifyToken, async (req, res) => {
       const applicationData = req.body;
       const result = await applicationsCollection.insertOne(applicationData);
 
@@ -203,36 +200,41 @@ async function run() {
     });
 
     // Get all all application requests from db for volunteer
+    // app.get(
+    //   "/application-requests/:email",
+    //   verifyToken,
+    //   verifyEmail,
+    //   async (req, res) => {
+    //     const email = req.params.email;
+    //     const query = { email };
+    //     const result = await applicationsCollection.find(query).toArray();
+    //     res.send(result);
+    //   }
+    // );
+
     app.get(
-      "/application-requests/:email",
-      logger,
+      "/application-post-details",
       verifyToken,
+      verifyEmail,
       async (req, res) => {
-        const email = req.params.email;
+        const email = req.query.email;
+
         const query = { email };
         const result = await applicationsCollection.find(query).toArray();
-        res.send(result);
+
+        const idsWithObjectId = result.map(
+          (application) => new ObjectId(application.postId)
+        );
+
+        const postQuery = {
+          _id: {
+            $in: idsWithObjectId,
+          },
+        };
+        const postResult = await postsCollection.find(postQuery).toArray();
+        res.send(postResult);
       }
     );
-
-    app.get("/application-post-details/:email", async (req, res) => {
-      const email = req.params.email;
-      const query = { email };
-      const result = await applicationsCollection.find(query).toArray();
-
-      const idsWithObjectId = result.map(
-        (application) => new ObjectId(application.postId)
-      );
-      console.log(idsWithObjectId);
-
-      const postQuery = {
-        _id: {
-          $in: idsWithObjectId,
-        },
-      };
-      const postResult = await postsCollection.find(postQuery).toArray();
-      res.send(postResult);
-    });
 
     // cancel a volunteer request
 
